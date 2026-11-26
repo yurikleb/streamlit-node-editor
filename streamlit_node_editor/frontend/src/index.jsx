@@ -15,110 +15,12 @@ const PORT_TYPES = {
   ANY:     { color: "#71717a", label: "ANY" },
 };
 
-// ── Node definitions (the "palette") ──────────────────────────────────────────
-const NODE_DEFS = {
-  "Load Checkpoint": {
-    category: "Loaders",
-    color: "#1e293b",
-    headerColor: "#fb923c",
-    inputs: [],
-    outputs: [
-      { name: "MODEL", type: "MODEL" },
-      { name: "CLIP",  type: "CLIP" },
-      { name: "VAE",   type: "VAE" },
-    ],
-    params: [
-      { key: "ckpt_name", label: "Checkpoint", type: "select", options: ["v1-5-pruned.ckpt", "sd_xl_base.safetensors", "dreamshaper_8.safetensors"] },
-    ],
-  },
-  "CLIP Text Encode": {
-    category: "Conditioning",
-    color: "#1e293b",
-    headerColor: "#facc15",
-    inputs:  [{ name: "clip", type: "CLIP" }],
-    outputs: [{ name: "CONDITIONING", type: "LATENT" }],
-    params: [
-      { key: "text", label: "Prompt", type: "textarea" },
-    ],
-  },
-  "KSampler": {
-    category: "Sampling",
-    color: "#1e293b",
-    headerColor: "#818cf8",
-    inputs: [
-      { name: "model",           type: "MODEL" },
-      { name: "positive",        type: "LATENT" },
-      { name: "negative",        type: "LATENT" },
-      { name: "latent_image",    type: "LATENT" },
-    ],
-    outputs: [{ name: "LATENT", type: "LATENT" }],
-    params: [
-      { key: "seed",      label: "Seed",      type: "int",   default: 42 },
-      { key: "steps",     label: "Steps",     type: "int",   default: 20 },
-      { key: "cfg",       label: "CFG",       type: "float", default: 7.0 },
-      { key: "sampler",   label: "Sampler",   type: "select", options: ["euler", "euler_a", "dpm++2m", "ddim"] },
-      { key: "scheduler", label: "Scheduler", type: "select", options: ["normal", "karras", "exponential"] },
-      { key: "denoise",   label: "Denoise",   type: "float", default: 1.0 },
-    ],
-  },
-  "Empty Latent Image": {
-    category: "Latent",
-    color: "#1e293b",
-    headerColor: "#c084fc",
-    inputs:  [],
-    outputs: [{ name: "LATENT", type: "LATENT" }],
-    params: [
-      { key: "width",  label: "Width",  type: "int", default: 512 },
-      { key: "height", label: "Height", type: "int", default: 512 },
-      { key: "batch",  label: "Batch",  type: "int", default: 1 },
-    ],
-  },
-  "VAE Decode": {
-    category: "Latent",
-    color: "#1e293b",
-    headerColor: "#f87171",
-    inputs:  [{ name: "samples", type: "LATENT" }, { name: "vae", type: "VAE" }],
-    outputs: [{ name: "IMAGE",   type: "IMAGE" }],
-    params: [],
-  },
-  "Save Image": {
-    category: "Output",
-    color: "#1e293b",
-    headerColor: "#4ade80",
-    inputs:  [{ name: "images", type: "IMAGE" }],
-    outputs: [],
-    params: [
-      { key: "filename_prefix", label: "Filename", type: "string", default: "output" },
-    ],
-  },
-  "Image Scale": {
-    category: "Image",
-    color: "#1e293b",
-    headerColor: "#2dd4bf",
-    inputs:  [{ name: "image", type: "IMAGE" }],
-    outputs: [{ name: "IMAGE", type: "IMAGE" }],
-    params: [
-      { key: "upscale_method", label: "Method", type: "select", options: ["nearest", "bilinear", "bicubic", "lanczos"] },
-      { key: "width",  label: "Width",  type: "int", default: 1024 },
-      { key: "height", label: "Height", type: "int", default: 1024 },
-    ],
-  },
-  "Integer": {
-    category: "Primitives",
-    color: "#1e293b",
-    headerColor: "#38bdf8",
-    inputs:  [],
-    outputs: [{ name: "INT", type: "INT" }],
-    params: [{ key: "value", label: "Value", type: "int", default: 0 }],
-  },
-};
-
 // ── Utilities ─────────────────────────────────────────────────────────────────
 let _id = 1;
 const uid = () => `node_${_id++}`;
 
-function makeNode(type, x, y) {
-  const def = NODE_DEFS[type];
+function makeNode(type, x, y, nodeDefs) {
+  const def = nodeDefs[type] || { params: [] };
   return {
     id: uid(),
     type,
@@ -130,8 +32,8 @@ function makeNode(type, x, y) {
 }
 
 function portHeight(index) { return 44 + index * 28; }
-function nodeHeight(node) {
-  const def = NODE_DEFS[node.type];
+function nodeHeight(node, nodeDefs) {
+  const def = nodeDefs[node.type] || { inputs: [], outputs: [], params: [] };
   if (node.collapsed) return 36;
   const portRows = Math.max(def.inputs.length, def.outputs.length);
   const paramH = def.params.reduce((sum, p) => sum + (p.type === "textarea" ? 60 : 34), 0);
@@ -157,9 +59,9 @@ function wirePath(x1, y1, x2, y2) {
 
 // ── Node component ─────────────────────────────────────────────────────────────
 function GraphNode({ node, selected, wiring, onSelect, onDragStart,
-  onPortMouseDown, onPortMouseUp, connections }) {
-  const def = NODE_DEFS[node.type];
-  const h = nodeHeight(node);
+  onPortMouseDown, onPortMouseUp, connections, nodeDefs }) {
+  const def = nodeDefs[node.type] || { inputs: [], outputs: [], params: [], headerColor: "#71717a" };
+  const h = nodeHeight(node, nodeDefs);
 
   const connectedInputs  = new Set(connections.filter(c => c.toNode === node.id).map(c => c.toPort));
   const connectedOutputs = new Set(connections.filter(c => c.fromNode === node.id).map(c => c.fromPort));
@@ -291,17 +193,8 @@ function GraphNode({ node, selected, wiring, onSelect, onDragStart,
 
 // ── Main Editor ───────────────────────────────────────────────────────────────
 export default function NodeEditor() {
-  const [nodes, setNodes] = useState(() => {
-    const n1 = makeNode("Load Checkpoint", 60, 80);
-    const n2 = makeNode("CLIP Text Encode", 360, 60);
-    const n3 = makeNode("CLIP Text Encode", 360, 240);
-    const n4 = makeNode("Empty Latent Image", 360, 440);
-    const n5 = makeNode("KSampler", 680, 200);
-    const n6 = makeNode("VAE Decode", 1000, 300);
-    const n7 = makeNode("Save Image", 1260, 320);
-    n3.params.text = "blurry, bad quality, ugly";
-    return [n1, n2, n3, n4, n5, n6, n7];
-  });
+  const [nodeDefs, setNodeDefs] = useState({});
+  const [nodes, setNodes] = useState([]);
 
   const [connections, setConnections] = useState([]);
 
@@ -332,16 +225,14 @@ export default function NodeEditor() {
     const onRender = (event) => {
       const args = event.detail.args || {};
       if (!readyRef.current) {
-        if (args.initial_nodes && args.initial_nodes.length) {
-          setNodes(args.initial_nodes.map(n => ({
-            ...makeNode(n.type, n.x, n.y),
+        const defs = args.node_defs || {};
+        setNodeDefs(defs);
+        setNodes((args.initial_nodes || []).map(n => ({
+            ...makeNode(n.type, n.x, n.y, defs),
             id: n.id,
             params: n.params || {},
           })));
-        }
-        if (args.initial_connections && args.initial_connections.length) {
-          setConnections(args.initial_connections);
-        }
+        setConnections(args.initial_connections || []);
         readyRef.current = true;
       }
       Streamlit.setFrameHeight(args.height || 700);
@@ -480,10 +371,10 @@ export default function NodeEditor() {
       x: (rawX - pan.x) / zoom,
       y: (rawY - pan.y) / zoom,
     };
-    setNodes(ns => [...ns, makeNode(type, pt.x - 120, pt.y - 18)]);
+    setNodes(ns => [...ns, makeNode(type, pt.x - 120, pt.y - 18, nodeDefs)]);
     setContextMenu(null);
     setPalette(false);
-  }, [pan, zoom]);
+  }, [nodeDefs, pan, zoom]);
 
   // ── Delete selected node ──────────────────────────────────────────────────
   useEffect(() => {
@@ -511,13 +402,14 @@ export default function NodeEditor() {
   const getWireColor = (conn) => {
     const fromNode = nodes.find(n => n.id === conn.fromNode);
     if (!fromNode) return "#71717a";
-    const def = NODE_DEFS[fromNode.type];
+    const def = nodeDefs[fromNode.type];
+    if (!def) return "#71717a";
     const port = def.outputs[conn.fromPort];
     return PORT_TYPES[port?.type]?.color ?? "#71717a";
   };
 
   // ── Filtered palette ──────────────────────────────────────────────────────
-  const filteredDefs = Object.entries(NODE_DEFS).filter(([name]) =>
+  const filteredDefs = Object.entries(nodeDefs).filter(([name]) =>
     name.toLowerCase().includes(paletteSearch.toLowerCase())
   );
   const categories = [...new Set(filteredDefs.map(([, d]) => d.category))];
@@ -610,7 +502,7 @@ export default function NodeEditor() {
             <div style={{ padding: "6px 12px 4px", fontSize: 9, color: "#475569", letterSpacing: "0.15em" }}>
               ADD NODE
             </div>
-            {Object.entries(NODE_DEFS).map(([name, def]) => (
+            {Object.entries(nodeDefs).map(([name, def]) => (
               <div key={name}
                 onClick={() => addNode(name, contextMenu.svgX, contextMenu.svgY)}
                 style={{ padding: "6px 14px", cursor: "pointer", fontSize: 11, color: "#cbd5e1",
@@ -668,6 +560,7 @@ export default function NodeEditor() {
                 selected={selected === node.id}
                 wiring={wiring}
                 connections={connections}
+                nodeDefs={nodeDefs}
                 onSelect={setSelected}
                 onDragStart={handleNodeDragStart}
                 onPortMouseDown={handlePortMouseDown}
