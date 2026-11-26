@@ -3,16 +3,17 @@ import { Streamlit } from "streamlit-component-lib";
 
 // ── Port type system (ComfyUI-style color coding) ─────────────────────────────
 const PORT_TYPES = {
-  IMAGE:   { color: "#4ade80", label: "IMAGE" },
-  LATENT:  { color: "#c084fc", label: "LATENT" },
-  MODEL:   { color: "#fb923c", label: "MODEL" },
-  CLIP:    { color: "#facc15", label: "CLIP" },
-  VAE:     { color: "#f87171", label: "VAE" },
-  INT:     { color: "#38bdf8", label: "INT" },
-  FLOAT:   { color: "#818cf8", label: "FLOAT" },
-  STRING:  { color: "#a8a29e", label: "STRING" },
-  MASK:    { color: "#2dd4bf", label: "MASK" },
-  ANY:     { color: "#71717a", label: "ANY" },
+  RAW_DATA:  { color: "#4ade80", label: "Raw Data" },
+  HP_SIGNAL: { color: "#a78bfa", label: "HP Signal" },
+  LP_SIGNAL: { color: "#fb923c", label: "LP Signal" },
+  SPIKES:    { color: "#facc15", label: "Spikes" },
+  BURSTS:    { color: "#f43f5e", label: "Bursts" },
+  CHANNELS:  { color: "#22d3ee", label: "Channels" },
+  INT:       { color: "#3b82f6", label: "Integer" },
+  FLOAT:     { color: "#e879f9", label: "Float" },
+  STRING:    { color: "#d6b38a", label: "String" },
+  BOOLEAN:   { color: "#a3e635", label: "Boolean" },
+  ANY:       { color: "#9ca3af", label: "Any" },
 };
 
 // ── Utilities ─────────────────────────────────────────────────────────────────
@@ -379,7 +380,12 @@ export default function NodeEditor() {
   // ── Delete selected node ──────────────────────────────────────────────────
   useEffect(() => {
     const handler = (e) => {
-      if ((e.key === "Delete" || e.key === "Backspace") && selected) {
+      const target = e.target;
+      const isEditing = target instanceof HTMLInputElement
+        || target instanceof HTMLTextAreaElement
+        || target instanceof HTMLSelectElement
+        || target.isContentEditable;
+      if ((e.key === "Delete" || e.key === "Backspace") && selected && !isEditing) {
         setNodes(ns => ns.filter(n => n.id !== selected));
         setConnections(cs => cs.filter(c => c.fromNode !== selected && c.toNode !== selected));
         setSelected(null);

@@ -1,3 +1,6 @@
+### ☝️ NOTE:
+This is a forked and modified version of the "streamlit-node-editor" library, adjusted for the [Y.Ikeuchi Lab](https://www.bmce.iis.u-tokyo.ac.jp/) data analysis pipeline frontend.
+
 <p align="center">
   <img src="https://raw.githubusercontent.com/RhythrosaLabs/streamlit-node-editor/main/assets/screenshot.svg" width="800" alt="streamlit-node-editor screenshot" />
 </p>
