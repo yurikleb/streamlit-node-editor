@@ -60,7 +60,7 @@ function wirePath(x1, y1, x2, y2) {
 
 // ── Node component ─────────────────────────────────────────────────────────────
 function GraphNode({ node, selected, wiring, onSelect, onDragStart,
-  onPortMouseDown, onPortMouseUp, connections, nodeDefs }) {
+  onPortMouseDown, onPortMouseUp, connections, nodeDefs, onParamChange }) {
   const def = nodeDefs[node.type] || { inputs: [], outputs: [], params: [], headerColor: "#71717a" };
   const h = nodeHeight(node, nodeDefs);
 
@@ -159,7 +159,10 @@ function GraphNode({ node, selected, wiring, onSelect, onDragStart,
                   {param.type === "select" ? (
                     <select
                       value={node.params[param.key] ?? ""}
-                      onChange={e => e.stopPropagation()}
+                      onChange={e => {
+                        e.stopPropagation();
+                        onParamChange(node.id, param.key, e.target.value);
+                      }}
                       onClick={e => e.stopPropagation()}
                       style={{ flex: 1, background: "#0f0f1a", border: "1px solid rgba(255,255,255,0.1)",
                         borderRadius: 4, color: "#e2e8f0", fontFamily: "'Fira Code', monospace",
@@ -377,6 +380,13 @@ export default function NodeEditor() {
     setPalette(false);
   }, [nodeDefs, pan, zoom]);
 
+  const handleParamChange = useCallback((nodeId, key, value) => {
+    setNodes(ns => ns.map(n => n.id === nodeId
+      ? { ...n, params: { ...n.params, [key]: value } }
+      : n
+    ));
+  }, []);
+
   // ── Delete selected node ──────────────────────────────────────────────────
   useEffect(() => {
     const handler = (e) => {
@@ -489,7 +499,7 @@ export default function NodeEditor() {
         {/* ── Port type legend ──────────────────────────────────────────── */}
         <div style={{ position: "absolute", bottom: 16, left: 16, zIndex: 100,
           background: "rgba(13,13,25,0.9)", border: "1px solid rgba(255,255,255,0.07)",
-          borderRadius: 8, padding: "8px 12px", display: "flex", gap: 12, flexWrap: "wrap", maxWidth: 500 }}>
+          borderRadius: 8, padding: "8px 12px", display: "flex", gap: 12, flexWrap: "wrap", maxWidth: 800 }}>
           {Object.entries(PORT_TYPES).filter(([k]) => k !== "ANY").map(([k, v]) => (
             <div key={k} style={{ display: "flex", alignItems: "center", gap: 4 }}>
               <div style={{ width: 8, height: 8, borderRadius: "50%", background: v.color }} />
@@ -567,6 +577,7 @@ export default function NodeEditor() {
                 wiring={wiring}
                 connections={connections}
                 nodeDefs={nodeDefs}
+                onParamChange={handleParamChange}
                 onSelect={setSelected}
                 onDragStart={handleNodeDragStart}
                 onPortMouseDown={handlePortMouseDown}
